@@ -5,7 +5,7 @@ import sys
 import os
 from src.core.puzzle import is_solvable, GOAL_STATE
 from src.core.solver import a_star
-from src.heuristics.functions import manhattan
+from src.heuristics.functions import *
 from src.utils.board import generate_random_solvable, parse_board_input
 
 # Màu sắc
@@ -157,7 +157,7 @@ def run():
             message = "Trạng thái này không giải được."
             return False
 
-        result = a_star(start, manhattan)
+        result = a_star(start, manhattan_linear_conflict)
         if not result:
             solution_path = []
             result_info = {}
