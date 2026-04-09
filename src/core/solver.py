@@ -1,8 +1,8 @@
 # src/core/solver.py
 
 import heapq
+import sys
 import time
-import tracemalloc
 
 from src.core.puzzle import GOAL_STATE, get_neighbors
 
@@ -11,6 +11,8 @@ class Node:
     Đại diện cho một trạng thái trong cây tìm kiếm.
     Lưu trạng thái, chi phí g(n), và con trỏ về node cha để truy vết đường đi.
     """
+    __slots__ = ['state', 'parent', 'g', 'h', 'f']
+
     def __init__(self, state, parent=None, g=0, h=0):
         self.state  = state   # trạng thái bảng 3x3
         self.parent = parent  # node cha (để truy vết)
@@ -43,7 +45,6 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
         nodes_in_open   — số node còn trong open list lúc tìm ra đích
         time_ms         — thời gian chạy (milliseconds)
     """
-    tracemalloc.start()
     start_time = time.time()
 
     # Khởi tạo node đầu tiên
@@ -73,8 +74,9 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
         if current.state == goal:
             elapsed = (time.time() - start_time) * 1000
 
-            cur_memory, peak_memory = tracemalloc.get_traced_memory()
-            tracemalloc.stop()
+            node_size = sys.getsizeof(current)
+            state_size = sys.getsizeof(current.state) + sum(sys.getsizeof(row) for row in current.state)
+            total_bytes = (len(open_heap) * node_size) + (len(closed_set) * state_size)
 
             return {
                 "path":           reconstruct_path(current),
@@ -82,7 +84,7 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
                 "nodes_expanded": nodes_expanded,
                 "nodes_in_open":  len(open_heap),
                 "time_ms":        round(elapsed, 2),
-                "memory_kb":      round(peak_memory / 1024, 2)
+                "memory_kb":      round(total_bytes / 1024, 2)
             }
 
         # Mở rộng các trạng thái kế tiếp
@@ -99,5 +101,4 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
                 heapq.heappush(open_heap, neighbor_node)
 
     # Không tìm được lời giải
-    tracemalloc.stop()
     return None
