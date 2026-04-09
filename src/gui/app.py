@@ -84,7 +84,7 @@ def draw_board(screen, state, font_tile, solving=False):
                 ty   = y + TILE_SIZE // 2 - text.get_height() // 2
                 screen.blit(text, (tx, ty))
 
-def draw_info(screen, font_ui, steps, nodes, time_ms, current_step, total_steps):
+def draw_info(screen, font_ui, steps, nodes, time_ms, memory_kb, current_step, total_steps):
     """Vẽ thông tin kết quả bên phải bảng."""
     info_x = BOARD_X + 3 * TILE_SIZE + 40
 
@@ -92,11 +92,12 @@ def draw_info(screen, font_ui, steps, nodes, time_ms, current_step, total_steps)
         ("Số bước:",        str(steps)         if steps  else "-"),
         ("Node mở rộng:",   str(nodes)         if nodes  else "-"),
         ("Thời gian:",      f"{time_ms} ms"    if time_ms else "-"),
+        ("Bộ nhớ:", f"{memory_kb} KB" if memory_kb is not None else "-"),  # Thêm dòng này
         ("Bước hiện tại:",  f"{current_step}/{total_steps}" if total_steps else "-"),
     ]
 
     for i, (label, value) in enumerate(labels):
-        y = 120 + i * 60
+        y = 120 + i * 55
         lbl = font_ui.render(label, True, BLACK)
         val = font_ui.render(value, True, BLUE)
         screen.blit(lbl, (info_x, y))
@@ -280,6 +281,7 @@ def run():
                 result_info.get("steps"),
                 result_info.get("nodes_expanded"),
                 result_info.get("time_ms"),
+                result_info.get("memory_kb"),
                 current_step,
                 len(solution_path) - 1 if solution_path else 0
             )

@@ -2,6 +2,8 @@
 
 import heapq
 import time
+import tracemalloc
+
 from src.core.puzzle import GOAL_STATE, get_neighbors
 
 class Node:
@@ -41,6 +43,7 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
         nodes_in_open   — số node còn trong open list lúc tìm ra đích
         time_ms         — thời gian chạy (milliseconds)
     """
+    tracemalloc.start()
     start_time = time.time()
 
     # Khởi tạo node đầu tiên
@@ -69,12 +72,17 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
         # Tìm thấy đích
         if current.state == goal:
             elapsed = (time.time() - start_time) * 1000
+
+            cur_memory, peak_memory = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
             return {
                 "path":           reconstruct_path(current),
                 "steps":          current.g,
                 "nodes_expanded": nodes_expanded,
                 "nodes_in_open":  len(open_heap),
-                "time_ms":        round(elapsed, 2)
+                "time_ms":        round(elapsed, 2),
+                "memory_kb":      round(peak_memory / 1024, 2)
             }
 
         # Mở rộng các trạng thái kế tiếp
@@ -91,4 +99,5 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
                 heapq.heappush(open_heap, neighbor_node)
 
     # Không tìm được lời giải
+    tracemalloc.stop()
     return None
