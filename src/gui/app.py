@@ -127,6 +127,7 @@ def run():
     # Trạng thái ứng dụng: mode_select -> manual_input -> solver_view
     app_mode = "mode_select"
     start = GOAL_STATE
+    pending_state = None
     current_mode_label = ""
     message = "Chọn chế độ để bắt đầu."
     manual_text = ""
@@ -142,7 +143,7 @@ def run():
 
     input_rect = pygame.Rect(100, 210, 500, 52)
 
-    def solve_from_start(state):
+    def solve_from_start(state, heuristic_fn):
         """Giải puzzle từ trạng thái đầu vào và cập nhật trạng thái UI."""
         nonlocal start, solution_path, current_step, result_info, is_playing, play_timer, message
 
@@ -157,7 +158,7 @@ def run():
             message = "Trạng thái này không giải được."
             return False
 
-        result = a_star(start, manhattan_linear_conflict)
+        result = a_star(start, heuristic_fn)
         if not result:
             solution_path = []
             result_info = {}
@@ -188,7 +189,9 @@ def run():
         screen.blit(title, (WINDOW_W // 2 - title.get_width() // 2, 30))
 
         prev_hover = next_hover = play_hover = reset_hover = False
-        random_hover = manual_mode_hover = solve_manual_hover = back_hover = mode_hover = False
+        random_hover = manual_mode_hover = solve_manual_hover = back_hover = menu_hover = False
+        manhattan_hover = mlc_hover = back_h_hover = False
+        change_heuris_hover = menu_hover = False
 
         if app_mode == "mode_select":
             hint = font_ui.render("Chọn chế độ chơi:", True, BLACK)
@@ -223,6 +226,24 @@ def run():
                 msg = font_ui.render(message, True, RED)
                 screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 380))
 
+        elif app_mode == "heuristic_select":
+            hint = font_ui.render("Chọn hàm Heuristic để giải:", True, BLACK)
+            screen.blit(hint, (WINDOW_W // 2 - hint.get_width() // 2, 120))
+
+            manhattan_hover = draw_button(
+                screen, font_ui, "Manhattan Distance", 150, 190, 400, 56, BLUE, DARK_BLUE, mouse_pos
+            )
+            mlc_hover = draw_button(
+                screen, font_ui, "Manhattan + Linear Conflict", 150, 270, 400, 56, GREEN, (30, 140, 80), mouse_pos
+            )
+            back_h_hover = draw_button(
+                screen, font_ui, "Quay lại", 285, 360, 130, 46, ORANGE, (230, 140, 0), mouse_pos
+            )
+
+            if message:
+                msg = font_ui.render(message, True, BLACK)
+                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 430))
+
         else:
             # --- Bảng hiện tại ---
             current_state = (
@@ -246,12 +267,13 @@ def run():
 
             # --- Các nút bấm ---
             btn_y = WINDOW_H - 80
-            prev_hover = draw_button(screen, font_ui, "< Prev",  40,  btn_y, 100, 44, BLUE, DARK_BLUE, mouse_pos)
-            next_hover = draw_button(screen, font_ui, "Next >",  155, btn_y, 100, 44, BLUE, DARK_BLUE, mouse_pos)
+            prev_hover = draw_button(screen, font_ui, "< Prev",  35,  btn_y, 90, 44, BLUE, DARK_BLUE, mouse_pos)
+            next_hover = draw_button(screen, font_ui, "Next >",  135, btn_y, 90, 44, BLUE, DARK_BLUE, mouse_pos)
             play_label = "Pause" if is_playing else "Play"
-            play_hover = draw_button(screen, font_ui, play_label, 270, btn_y, 100, 44, GREEN, (30, 140, 80), mouse_pos)
-            reset_hover = draw_button(screen, font_ui, "Reset",  385, btn_y, 100, 44, RED, (180, 50, 50), mouse_pos)
-            mode_hover = draw_button(screen, font_ui, "Đổi chế độ", 500, btn_y, 150, 44, ORANGE, (230, 140, 0), mouse_pos)
+            play_hover = draw_button(screen, font_ui, play_label, 235, btn_y, 90, 44, GREEN, (30, 140, 80), mouse_pos)
+            reset_hover = draw_button(screen, font_ui, "Reset",  335, btn_y, 90, 44, RED, (180, 50, 50), mouse_pos)
+            change_heuris_hover = draw_button(screen, font_ui, "Đổi Heuris", 435, btn_y, 130, 44, ORANGE, (230, 140, 0), mouse_pos)
+            menu_hover = draw_button(screen, font_ui, "Menu", 575, btn_y, 90, 44, ORANGE, (230, 140, 0), mouse_pos)
 
         # --- Auto-play ---
         if app_mode == "solver_view" and is_playing and solution_path:
@@ -273,9 +295,9 @@ def run():
                 if app_mode == "mode_select":
                     if random_hover:
                         current_mode_label = "Random"
-                        random_state = generate_random_solvable()
-                        if solve_from_start(random_state):
-                            app_mode = "solver_view"
+                        pending_state = generate_random_solvable()
+                        app_mode = "heuristic_select"
+                        message = "Chọn Heuristic"
                     elif manual_mode_hover:
                         app_mode = "manual_input"
                         manual_text = ""
@@ -290,11 +312,26 @@ def run():
                             message = "Trạng thái nhập vào không giải được."
                         else:
                             current_mode_label = "Người chơi nhập"
-                            if solve_from_start(parsed_state):
-                                app_mode = "solver_view"
+                            pending_state = parsed_state
+                            app_mode = "heuristic_select"
+                            message = "Chọn Heuristic"
                     elif back_hover:
                         app_mode = "mode_select"
                         message = "Chọn chế độ để bắt đầu."
+
+                elif app_mode == "heuristic_select":
+                    if manhattan_hover:
+                        if solve_from_start(pending_state, manhattan):
+                            app_mode = "solver_view"
+                    elif mlc_hover:
+                        if solve_from_start(pending_state, manhattan_linear_conflict):
+                            app_mode = "solver_view"
+                    elif back_h_hover:
+                        if current_mode_label == "Random":
+                            app_mode = "mode_select"
+                        else:
+                            app_mode = "manual_input"
+                        message = ""
 
                 else:
                     if prev_hover and current_step > 0:
@@ -313,7 +350,13 @@ def run():
                         current_step = 0
                         is_playing = False
 
-                    if mode_hover:
+                    if change_heuris_hover:
+                        pending_state = start
+                        app_mode = "heuristic_select"
+                        is_playing = False
+                        message = "Chọn lại hàm Heuristic"
+
+                    if menu_hover:
                         app_mode = "mode_select"
                         is_playing = False
                         message = "Chọn chế độ để bắt đầu."
@@ -327,8 +370,9 @@ def run():
                         message = "Trạng thái nhập vào không giải được."
                     else:
                         current_mode_label = "Người chơi nhập"
-                        if solve_from_start(parsed_state):
-                            app_mode = "solver_view"
+                        pending_state = parsed_state
+                        app_mode = "heuristic_select"
+                        message = "Chọn Heuristic"
                 elif event.key == pygame.K_BACKSPACE:
                     manual_text = manual_text[:-1]
 

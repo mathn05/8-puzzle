@@ -23,14 +23,13 @@ def validate_board(state):
 
 
 def parse_board_input(text):
-	normalized = text.replace(",", " ")
-	parts = [item for item in normalized.split() if item]
+	digits = [char for char in text if char.isdigit()]
 
-	if len(parts) != 9:
+	if len(digits) != 9:
 		return None, "Bạn cần nhập đúng 9 số."
 
 	try:
-		numbers = [int(item) for item in parts]
+		numbers = [int(item) for item in digits]
 	except ValueError:
 		return None, "Chỉ nhập số từ 0 đến 8."
 
