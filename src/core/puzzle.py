@@ -6,10 +6,9 @@ GOAL_STATE = (
     (7, 8, 0)  # 0 là ô trống
 )
 
-def is_solvable(state):
+def count_inversions(state):
     """
-    Kiểm tra trạng thái có giải được không.
-    Đếm số nghịch thế (inversion)
+    Trải phẳng ma trận (bỏ qua ô trống 0) và đếm số nghịch thế.
     """
     flat = [x for row in state for x in row if x != 0]
     inversions = 0
@@ -17,7 +16,16 @@ def is_solvable(state):
         for j in range(i + 1, len(flat)):
             if flat[i] > flat[j]:
                 inversions += 1
-    return inversions % 2 == 0
+    return inversions
+
+def is_solvable(state, goal = GOAL_STATE):
+    """
+    Kiểm tra trạng thái có giải được không.
+    Đếm số nghịch thế (inversion)
+    """
+    start_inversions = count_inversions(state)
+    goal_inversions = count_inversions(goal)
+    return  (start_inversions % 2) == (goal_inversions % 2)
 
 def find_blank(state):
     """Trả về (row, col) của ô trống (giá trị 0)."""

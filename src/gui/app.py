@@ -190,7 +190,7 @@ def run():
 
         prev_hover = next_hover = play_hover = reset_hover = False
         random_hover = manual_mode_hover = solve_manual_hover = back_hover = menu_hover = False
-        manhattan_hover = mlc_hover = back_h_hover = False
+        mt_hover = manhattan_hover = mlc_hover = id_hover = max_hover = gaschnig_hover = back_h_hover = False
         change_heuris_hover = menu_hover = False
 
         if app_mode == "mode_select":
@@ -228,21 +228,40 @@ def run():
 
         elif app_mode == "heuristic_select":
             hint = font_ui.render("Chọn hàm Heuristic để giải:", True, BLACK)
-            screen.blit(hint, (WINDOW_W // 2 - hint.get_width() // 2, 120))
+            screen.blit(hint, (WINDOW_W // 2 - hint.get_width() // 2, 80))
+
+            mt_hover = draw_button(
+                screen, font_ui, "Misplaced Tiles", 80, 130, 250, 56, RED, (153, 0, 0), mouse_pos
+            )
+            gaschnig_hover = draw_button(
+                screen, font_ui, "Gaschnig", 370, 130, 250, 56, RED, (153, 0, 0), mouse_pos
+            )
 
             manhattan_hover = draw_button(
-                screen, font_ui, "Manhattan Distance", 150, 190, 400, 56, BLUE, DARK_BLUE, mouse_pos
+                screen, font_ui, "Manhattan Distance", 370, 200, 250, 56, GREEN, (30, 140, 80), mouse_pos
+            )
+            id_hover = draw_button(
+                screen, font_ui, "Inversion Distance", 80, 200, 250, 56, GREEN, (30, 140, 80), mouse_pos
+            )
+
+            tmp = draw_button(
+                screen, font_ui, "temp", 80, 270, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
             )
             mlc_hover = draw_button(
-                screen, font_ui, "Manhattan + Linear Conflict", 150, 270, 400, 56, GREEN, (30, 140, 80), mouse_pos
+                screen, font_ui, "Manhat + Linear Conf", 370, 270, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
             )
+
+            max_hover = draw_button(
+                screen, font_ui, "Max Heuristic", 80, 350, 540, 56, (128, 90, 213), (85, 60, 154), mouse_pos
+            )
+
             back_h_hover = draw_button(
-                screen, font_ui, "Quay lại", 285, 360, 130, 46, ORANGE, (230, 140, 0), mouse_pos
+                screen, font_ui, "Quay lại", 285, 430, 130, 46, ORANGE, (230, 140, 0), mouse_pos
             )
 
             if message:
                 msg = font_ui.render(message, True, BLACK)
-                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 430))
+                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 510))
 
         else:
             # --- Bảng hiện tại ---
@@ -320,12 +339,30 @@ def run():
                         message = "Chọn chế độ để bắt đầu."
 
                 elif app_mode == "heuristic_select":
-                    if manhattan_hover:
+                    if mt_hover:
+                        if solve_from_start(pending_state, misplaced_tiles):
+                            app_mode = "solver_view"
+
+                    elif manhattan_hover:
                         if solve_from_start(pending_state, manhattan):
                             app_mode = "solver_view"
+
                     elif mlc_hover:
                         if solve_from_start(pending_state, manhattan_linear_conflict):
                             app_mode = "solver_view"
+
+                    elif id_hover:
+                        if solve_from_start(pending_state, inversion_distance):
+                            app_mode = "solver_view"
+
+                    elif gaschnig_hover:
+                        if solve_from_start(pending_state, gaschnig):
+                            app_mode = "solver_view"
+
+                    elif max_hover:
+                        if solve_from_start(pending_state, max_heuristic):
+                            app_mode = "solver_view"
+
                     elif back_h_hover:
                         if current_mode_label == "Random":
                             app_mode = "mode_select"
