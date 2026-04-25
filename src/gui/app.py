@@ -4,7 +4,8 @@ import pygame
 import sys
 import os
 from src.core.puzzle import is_solvable, GOAL_STATE
-from src.core.solver import a_star
+from src.core.solver_a import a_star
+from src.core.solver_mm_search import mm_search
 from src.heuristics.functions import *
 from src.utils.board import generate_random_solvable, parse_board_input
 
@@ -159,7 +160,7 @@ def run():
             message = "Trạng thái này không giải được."
             return False
 
-        result = a_star(start, heuristic_fn)
+        result = mm_search(start, heuristic_fn)
         if not result:
             solution_path = []
             result_info = {}

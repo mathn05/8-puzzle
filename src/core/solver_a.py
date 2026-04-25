@@ -1,4 +1,4 @@
-# src/core/solver.py
+# src/core/solver_a.py
 
 import heapq
 import sys
@@ -43,7 +43,8 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
         steps           — số bước di chuyển
         nodes_expanded  — số node đã mở rộng
         nodes_in_open   — số node còn trong open list lúc tìm ra đích
-        time_ms         — thời gian chạy (milliseconds)
+        time_ms         — thời gian chạy (ms)
+        memory_kb       - bộ nhớ sử dụng (kb)
     """
     start_time = time.time()
 
