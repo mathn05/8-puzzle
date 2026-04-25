@@ -1,6 +1,7 @@
 # src/heuristics/basic.py
 from functools import lru_cache
 
+from src.heuristics.walking_distance_table import *
 
 @lru_cache(maxsize=1)
 def get_goal_pos(goal):
@@ -150,6 +151,13 @@ def count_inversion(arr):
                 inversion += 1
     return inversion
 
+"""
+Khoảng cách nghịch đảo (Inversion Distance).
+Trải phẳng bàn cờ ra mảng 1 chiều, đếm xem có bao nhiêu cặp gạch đang nằm ngược thứ tự so với đích (Inversion).
+Đếm tách biệt theo chiều ngang và chiều dọc. 
+Vì mỗi bước đi lên/xuống chỉ có thể "nhảy" qua 2 viên gạch (giúp sửa tối đa 2 lỗi nghịch đảo), 
+nên ta lấy tổng số lỗi chia 2 để ra số bước đi ước lượng tối thiểu.
+"""
 def inversion_distance(state, goal):
     goal_row_map = {}
     goal_col_map = {}
@@ -180,6 +188,84 @@ def inversion_distance(state, goal):
     inv_col = count_inversion(flat_col)
 
     return (inv_row + 1) // 2 + (inv_col + 1) // 2
+
+def flatten_wd_state(state):
+    """
+    Chuyển đổi trạng thái bảng (ma trận 2D hoặc mảng 1D) thành một tuple 1D.
+    """
+    if len(state) == 9 and not isinstance(state[0], (list, tuple)):
+        return tuple(state)
+
+    return tuple(x for row in state for x in row)
+
+def wd_goal_pos(goal):
+    """
+    Tạo bảng băm (Hash Map) lưu trữ tọa độ (dòng, cột) của từng viên gạch trong trạng thái đích.
+    """
+    flat_goal = flatten_wd_state(goal)
+
+    return {
+        # divmod(idx, 3) trả về (idx // 3, idx % 3) tương đương với (dòng, cột) trong bảng 3x3
+        tile: divmod(idx, 3)
+        for idx, tile in enumerate(flat_goal)
+    }
+
+def walking_distance(state, goal):
+    """
+    Tính toán giá trị Heuristic Walking Distance (WD) giữa trạng thái hiện tại và đích.
+    Thuật toán tách bài toán thành 2 phần độc lập (Hàng và Cột), sau đó xây dựng
+    "ma trận trừu tượng" để tra cứu số bước di chuyển tối thiểu từ các bảng đã tính trước (Cache).
+    Tổng số bước tối thiểu (Walking Distance) = Khoảng cách Hàng + Khoảng cách Cột.
+    """
+    # Lấy dữ liệu đệm (Cache) chứa bảng khoảng cách và từ điển tra cứu
+    wd_table, wd_neighbors, wd_tuple_lookup = get_wd_tables()
+
+    # Chuẩn hóa trạng thái hiện tại và đích về dạng tuple 1 chiều
+    flat_state = flatten_wd_state(state)
+    flat_goal = flatten_wd_state(goal)
+
+    # Lấy từ điển tọa độ đích của từng viên gạch
+    goal_pos = wd_goal_pos(goal)
+
+    # Xác định vị trí của ô trống (Blank - số 0) trong trạng thái đích
+    goal_blank_index = flat_goal.index(0)
+    goal_blank_row = goal_blank_index // 3
+    goal_blank_col = goal_blank_index % 3
+
+    # Khởi tạo ma trận trừu tượng 3x3 toàn số 0 cho Hàng và Cột
+    # Cấu trúc: ma_trận[i][j] = Số lượng viên gạch đang ở vị trí i nhưng cần về vị trí j
+    row_puzzle = [[0 for _ in range(3)] for _ in range(3)]
+    col_puzzle = [[0 for _ in range(3)] for _ in range(3)]
+
+    for idx, tile in enumerate(flat_state):
+        if tile == 0: # Bỏ qua ô trống, chỉ tính gạch
+            continue
+
+        # Tọa độ hiện tại của viên gạch
+        current_row = idx // 3
+        current_col = idx % 3
+
+        # Tọa độ đích của viên gạch
+        tile_goal_row, tile_goal_col = goal_pos[tile]
+
+        # Có 1 viên gạch ở hàng/cột hiện tại cần phải di chuyển về hàng/cột đích
+        row_puzzle[current_row][tile_goal_row] += 1
+        col_puzzle[current_col][tile_goal_col] += 1
+
+    # Chuyển ma trận trừu tượng thành Tuple (Key) để tra cứu
+    row_key = tuple(x for row in row_puzzle for x in row)
+    col_key = tuple(x for row in col_puzzle for x in row)
+
+    # Tra cứu ID của trạng thái trừu tượng
+    # Cần dùng goal_blank_row/col vì số bước đi phụ thuộc vào vị trí ô trống ở đích nằm ở đâu
+    row_wd_id = wd_tuple_lookup[goal_blank_row][row_key]
+    col_wd_id = wd_tuple_lookup[goal_blank_col][col_key]
+
+    # Tra cứu số bước đi ngắn nhất (Distance) từ ID vừa tìm được
+    row_wd = wd_table[goal_blank_row][row_wd_id]
+    col_wd = wd_table[goal_blank_col][col_wd_id]
+
+    return row_wd + col_wd
 
 def max_heuristic(state, goal):
     id_heu = inversion_distance(state, goal)

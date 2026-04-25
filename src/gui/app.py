@@ -223,7 +223,7 @@ def run():
 
         prev_hover = next_hover = play_hover = reset_hover = False
         random_hover = manual_mode_hover = solve_manual_hover = back_hover = menu_hover = False
-        mt_hover = manhattan_hover = mlc_hover = id_hover = max_hover = gaschnig_hover = back_h_hover = False
+        mt_hover = manhattan_hover = mlc_hover = id_hover = max_hover = gaschnig_hover = wd_hover = back_h_hover = False
         change_heuris_hover = menu_hover = False
         algo_toggle_hover = False
 
@@ -279,14 +279,14 @@ def run():
             gaschnig_hover = draw_button(
                 screen, font_ui, "Gaschnig", 370, 220, 250, 56, RED, (153, 0, 0), mouse_pos
             )
-            manhattan_hover = draw_button(
-                screen, font_ui, "Manhattan Distance", 370, 290, 250, 56, GREEN, (30, 140, 80), mouse_pos
+            wd_hover = draw_button(
+                screen, font_ui, "Walking distance", 370, 290, 250, 56, GREEN, (30, 140, 80), mouse_pos
             )
             id_hover = draw_button(
                 screen, font_ui, "Inversion Distance", 80, 290, 250, 56, GREEN, (30, 140, 80), mouse_pos
             )
-            tmp = draw_button(
-                screen, font_ui, "temp", 80, 370, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
+            manhattan_hover = draw_button(
+                screen, font_ui, "Manhattan Distance", 80, 370, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
             )
             mlc_hover = draw_button(
                 screen, font_ui, "Manhat + Linear Conf", 370, 370, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
@@ -425,6 +425,10 @@ def run():
 
                     elif gaschnig_hover:
                         if solve_from_start(pending_state, gaschnig):
+                            app_mode = "solver_view"
+
+                    elif wd_hover:
+                        if solve_from_start(pending_state, walking_distance):
                             app_mode = "solver_view"
 
                     elif max_hover:

@@ -398,4 +398,3 @@ def bidirectional_a_star_mim(start, heuristic_fn, goal=GOAL_STATE, mm_epsilon=0)
 
 # Alias cho dễ gọi trong giao diện
 mm_search = bidirectional_a_star_mim
-bi_a_star_mim = bidirectional_a_star_mim
