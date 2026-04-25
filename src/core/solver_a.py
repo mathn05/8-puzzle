@@ -21,7 +21,8 @@ class Node:
         self.f      = g + h   # f(n) = g(n) + h(n)
 
     def __lt__(self, other):
-        return (self.f, self.h) < (other.f, other.h)
+        # So sánh ưu tiên theo f(n), nếu hòa xét tiếp h(n), rồi đến g(n)
+        return (self.f, self.h, self.g) < (other.f, other.h, other.g)
 
 def reconstruct_path(node):
         """Đi ngược từ node đích về node gốc để lấy đường đi."""
@@ -52,8 +53,14 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
     h0         = heuristic_fn(start, goal)
     start_node = Node(state=start, parent=None, g=0, h=h0)
 
-    # Open list: min-heap theo f(n)
-    open_heap  = [start_node]
+    # open_heap: Hàng đợi ưu tiên (Min-Heap).
+    open_heap  = []
+    heapq.heappush(open_heap, (start_node.f, start_node.h, start_node.g, 0, start_node))
+
+    # best_g: Từ điển (Hash Map) lưu chi phí g(n) tốt nhất đã biết để đi đến một trạng thái.
+    best_g = {
+        start: 0
+    }
 
     # Closed set: lưu các trạng thái đã xét
     closed_set = set()
@@ -61,13 +68,23 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
     # Đếm số node mở rộng
     nodes_expanded = 0
 
-    while open_heap:
-        current = heapq.heappop(open_heap)
+    # Đếm thứ tự sinh ra của Node
+    counter = 1
 
-        # Bỏ qua nếu đã xét trạng thái này rồi
+    while open_heap:
+        # Lấy Node có độ ưu tiên cao nhất (f(n) nhỏ nhất) ra khỏi hàng đợi
+        _, _, _, _, current = heapq.heappop(open_heap)
+
+        # Nếu lấy ra một Node có chi phí g(n) lớn hơn kỷ lục đã ghi nhận trong best_g,
+        # ta hiểu đây là một phiên bản cũ/tệ hơn và bỏ qua nó ngay lập tức
+        if current.g != best_g.get(current.state):
+            continue
+
+        # Nếu trạng thái này đã được duyệt xong từ trước, bỏ qua
         if current.state in closed_set:
             continue
 
+        # Đánh dấu trạng thái đã duyệt
         closed_set.add(current.state)
         nodes_expanded += 1
 
@@ -90,16 +107,33 @@ def a_star(start, heuristic_fn, goal=GOAL_STATE):
 
         # Mở rộng các trạng thái kế tiếp
         for neighbor_state in get_neighbors(current.state):
-            if neighbor_state not in closed_set:
-                new_g = current.g + 1
-                new_h = heuristic_fn(neighbor_state, goal)
-                neighbor_node = Node(
-                    state  = neighbor_state,
-                    parent = current,
-                    g      = new_g,
-                    h      = new_h
-                )
-                heapq.heappush(open_heap, neighbor_node)
+            new_g = current.g + 1
+
+            #Nếu hàng xóm đã nằm trong tập đã duyệt, không quay lại
+            if neighbor_state in closed_set:
+                continue
+
+            #Chỉ cho phép tiếp tục nếu tìm được đường đi có chi phí (g) nhỏ hơn kỷ lục cũ
+            if new_g >= best_g.get(neighbor_state, float("inf")):
+                continue
+
+            best_g[neighbor_state] = new_g
+
+            new_h = heuristic_fn(neighbor_state, goal)
+
+            neighbor_node = Node(
+                state=neighbor_state,
+                parent=current,
+                g=new_g,
+                h=new_h
+            )
+
+            heapq.heappush(
+                open_heap,
+                (neighbor_node.f, neighbor_node.h, neighbor_node.g, counter, neighbor_node)
+            )
+
+            counter += 1
 
     # Không tìm được lời giải
     return None

@@ -159,6 +159,7 @@ def run():
     message = "Chọn chế độ để bắt đầu."
     manual_text = ""
     cursor_pos = 0
+    selected_algo = "A_STAR"
 
     # Kết quả giải
     solution_path  = []
@@ -173,7 +174,7 @@ def run():
 
     def solve_from_start(state, heuristic_fn):
         """Giải puzzle từ trạng thái đầu vào và cập nhật trạng thái UI."""
-        nonlocal start, solution_path, current_step, result_info, is_playing, play_timer, message
+        nonlocal start, solution_path, current_step, result_info, is_playing, play_timer, message, selected_algo
 
         start = state
         current_step = 0
@@ -186,7 +187,11 @@ def run():
             message = "Trạng thái này không giải được."
             return False
 
-        result = mm_search(start, heuristic_fn)
+        if selected_algo == "A_STAR":
+            result = a_star(start, heuristic_fn)
+        else:
+            result = mm_search(start, heuristic_fn)
+
         if not result:
             solution_path = []
             result_info = {}
@@ -220,6 +225,7 @@ def run():
         random_hover = manual_mode_hover = solve_manual_hover = back_hover = menu_hover = False
         mt_hover = manhattan_hover = mlc_hover = id_hover = max_hover = gaschnig_hover = back_h_hover = False
         change_heuris_hover = menu_hover = False
+        algo_toggle_hover = False
 
         if app_mode == "mode_select":
             hint = font_ui.render("Chọn chế độ chơi:", True, BLACK)
@@ -254,42 +260,44 @@ def run():
                 msg = font_ui.render(message, True, RED)
                 screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 380))
 
+
         elif app_mode == "heuristic_select":
             hint = font_ui.render("Chọn hàm Heuristic để giải:", True, BLACK)
             screen.blit(hint, (WINDOW_W // 2 - hint.get_width() // 2, 80))
 
+            # --- VẼ NÚT CHUYỂN ĐỔI THUẬT TOÁN ---
+            algo_text = "Thuật toán: A*" if selected_algo == "A_STAR" else "Thuật toán: MM Search (A* 2 chiều)"
+            algo_color = (100, 100, 200) if selected_algo == "A_STAR" else (200, 100, 100)
+            algo_hover_color = (80, 80, 180) if selected_algo == "A_STAR" else (180, 80, 80)
+            algo_toggle_hover = draw_button(
+                screen, font_ui, algo_text, WINDOW_W // 2 - 185, 150, 370, 46, algo_color, algo_hover_color, mouse_pos
+            )
+
             mt_hover = draw_button(
-                screen, font_ui, "Misplaced Tiles", 80, 130, 250, 56, RED, (153, 0, 0), mouse_pos
+                screen, font_ui, "Misplaced Tiles", 80, 220, 250, 56, RED, (153, 0, 0), mouse_pos
             )
             gaschnig_hover = draw_button(
-                screen, font_ui, "Gaschnig", 370, 130, 250, 56, RED, (153, 0, 0), mouse_pos
+                screen, font_ui, "Gaschnig", 370, 220, 250, 56, RED, (153, 0, 0), mouse_pos
             )
-
             manhattan_hover = draw_button(
-                screen, font_ui, "Manhattan Distance", 370, 200, 250, 56, GREEN, (30, 140, 80), mouse_pos
+                screen, font_ui, "Manhattan Distance", 370, 290, 250, 56, GREEN, (30, 140, 80), mouse_pos
             )
             id_hover = draw_button(
-                screen, font_ui, "Inversion Distance", 80, 200, 250, 56, GREEN, (30, 140, 80), mouse_pos
+                screen, font_ui, "Inversion Distance", 80, 290, 250, 56, GREEN, (30, 140, 80), mouse_pos
             )
-
             tmp = draw_button(
-                screen, font_ui, "temp", 80, 270, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
+                screen, font_ui, "temp", 80, 370, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
             )
             mlc_hover = draw_button(
-                screen, font_ui, "Manhat + Linear Conf", 370, 270, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
+                screen, font_ui, "Manhat + Linear Conf", 370, 370, 250, 56, (70, 130, 180), (40, 90, 140), mouse_pos
             )
-
-            max_hover = draw_button(
-                screen, font_ui, "Max Heuristic", 80, 350, 540, 56, (128, 90, 213), (85, 60, 154), mouse_pos
-            )
-
             back_h_hover = draw_button(
-                screen, font_ui, "Quay lại", 285, 430, 130, 46, ORANGE, (230, 140, 0), mouse_pos
+                screen, font_ui, "Quay lại", 285, 450, 130, 46, ORANGE, (230, 140, 0), mouse_pos
             )
 
             if message:
                 msg = font_ui.render(message, True, BLACK)
-                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 510))
+                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, 520))
 
         else:
             # --- Bảng hiện tại ---
@@ -299,8 +307,9 @@ def run():
             )
             draw_board(screen, current_state, font_tile)
 
-            mode_text = font_ui.render(f"Chế độ: {current_mode_label}", True, BLACK)
-            screen.blit(mode_text, (BOARD_X, 70))
+            algo_display_name = "A*" if selected_algo == "A_STAR" else "MM Search"
+            mode_text = font_ui.render(f"Chế độ: {current_mode_label}  |  Thuật toán: {algo_display_name}", True, BLACK)
+            screen.blit(mode_text, (BOARD_X, 60))
 
             # --- Thông tin ---
             draw_info(
@@ -392,7 +401,13 @@ def run():
                             cursor_pos = best_pos
 
                 elif app_mode == "heuristic_select":
-                    if mt_hover:
+                    if algo_toggle_hover:
+                        if selected_algo == "A_STAR":
+                            selected_algo = "MM_SEARCH"
+                        else:
+                            selected_algo = "A_STAR"
+
+                    elif mt_hover:
                         if solve_from_start(pending_state, misplaced_tiles):
                             app_mode = "solver_view"
 
