@@ -48,15 +48,40 @@ def load_unicode_font(size, bold=False):
     return pygame.font.SysFont("Arial", size, bold=bold)
 
 
-def draw_input_box(screen, font_ui, text, x, y, w, h, active=True):
+def draw_input_box(screen, font_ui, text, x, y, w, h, active=True, cursor_pos=0):
     """Vẽ ô nhập liệu cho chế độ manual."""
     border = BLUE if active else GRAY
     rect = pygame.Rect(x, y, w, h)
     pygame.draw.rect(screen, WHITE, rect, border_radius=8)
     pygame.draw.rect(screen, border, rect, width=2, border_radius=8)
 
-    text_surface = font_ui.render(text or "Nhập 9 số...", True, BLACK if text else GRAY)
-    screen.blit(text_surface, (x + 10, y + h // 2 - text_surface.get_height() // 2))
+    text_x = x + 10
+    # Lấy chiều cao chuẩn của font để vẽ con trỏ
+    dummy_surface = font_ui.render("0", True, BLACK)
+    text_y = y + h // 2 - dummy_surface.get_height() // 2
+
+    # Vẽ text hoặc chữ mờ (placeholder)
+    if text:
+        text_surface = font_ui.render(text, True, BLACK)
+        screen.blit(text_surface, (text_x, text_y))
+    else:
+        placeholder = font_ui.render("Nhập 9 số...", True, GRAY)
+        screen.blit(placeholder, (text_x, text_y))
+
+    # Vẽ con trỏ nhấp nháy
+    if active:
+        # Tính toán tọa độ x của con trỏ
+        if text:
+            text_before_cursor = text[:cursor_pos]
+            cursor_x_offset = font_ui.size(text_before_cursor)[0]
+        else:
+            cursor_x_offset = 0
+
+        cursor_x = text_x + cursor_x_offset
+
+        # Nhấp nháy mỗi 500ms
+        if (pygame.time.get_ticks() // 500) % 2 == 0:
+            pygame.draw.line(screen, BLACK, (cursor_x, text_y), (cursor_x, text_y + dummy_surface.get_height()), 2)
 
 def draw_board(screen, state, font_tile, solving=False):
     """Vẽ bảng 3x3 lên màn hình."""
@@ -133,6 +158,7 @@ def run():
     current_mode_label = ""
     message = "Chọn chế độ để bắt đầu."
     manual_text = ""
+    cursor_pos = 0
 
     # Kết quả giải
     solution_path  = []
@@ -215,7 +241,7 @@ def run():
             guide = font_ui.render("Nhập 9 số (0..8), ví dụ: 1 2 3 4 5 6 7 8 0", True, BLACK)
             screen.blit(guide, (WINDOW_W // 2 - guide.get_width() // 2, 140))
 
-            draw_input_box(screen, font_ui, manual_text, 100, 210, 500, 52, active=True)
+            draw_input_box(screen, font_ui, manual_text, 100, 210, 500, 52, active=True, cursor_pos=cursor_pos)
 
             solve_manual_hover = draw_button(
                 screen, font_ui, "Giải", 200, 300, 130, 46, BLUE, DARK_BLUE, mouse_pos
@@ -323,6 +349,7 @@ def run():
                     elif manual_mode_hover:
                         app_mode = "manual_input"
                         manual_text = ""
+                        cursor_pos = 0
                         message = ""
 
                 elif app_mode == "manual_input":
@@ -340,6 +367,29 @@ def run():
                     elif back_hover:
                         app_mode = "mode_select"
                         message = "Chọn chế độ để bắt đầu."
+
+                    elif input_rect.collidepoint(event.pos):
+                        # Lấy tọa độ x của chuột (trừ đi tọa độ x của ô nhập liệu và lề 10px)
+                        click_x = event.pos[0] - (input_rect.x + 10)
+
+                        if click_x <= 0:
+                            cursor_pos = 0
+                        else:
+                            # Quét từng độ dài chuỗi để tìm vị trí gần con chuột nhất
+                            best_pos = 0
+                            min_diff = float('inf')
+
+                            for i in range(len(manual_text) + 1):
+                                # Đo chiều rộng của chuỗi text từ đầu đến vị trí thứ i
+                                text_width = font_ui.size(manual_text[:i])[0]
+                                diff = abs(text_width - click_x)
+
+                                # Nếu khoảng cách nhỏ hơn kỷ lục cũ, cập nhật lại vị trí tốt nhất
+                                if diff < min_diff:
+                                    min_diff = diff
+                                    best_pos = i
+
+                            cursor_pos = best_pos
 
                 elif app_mode == "heuristic_select":
                     if mt_hover:
@@ -413,14 +463,37 @@ def run():
                         pending_state = parsed_state
                         app_mode = "heuristic_select"
                         message = "Chọn Heuristic"
+
+                # Nút xóa lùi (Backspace)
                 elif event.key == pygame.K_BACKSPACE:
-                    manual_text = manual_text[:-1]
+                    if cursor_pos > 0:
+                        manual_text = manual_text[:cursor_pos - 1] + manual_text[cursor_pos:]
+                        cursor_pos -= 1
+
+                # Nút xóa tiến (Delete)
+                elif event.key == pygame.K_DELETE:
+                    if cursor_pos < len(manual_text):
+                        manual_text = manual_text[:cursor_pos] + manual_text[cursor_pos + 1:]
+
+                # Mũi tên trái
+                elif event.key == pygame.K_LEFT:
+                    if cursor_pos > 0:
+                        cursor_pos -= 1
+
+                # Mũi tên phải
+                elif event.key == pygame.K_RIGHT:
+                    if cursor_pos < len(manual_text):
+                        cursor_pos += 1
 
             if event.type == pygame.TEXTINPUT and app_mode == "manual_input":
                 filtered = "".join(ch for ch in event.text if ch.isdigit() or ch in {" ", ","})
                 if filtered:
-                    manual_text += filtered
+                    # Chèn text mới vào đúng vị trí con trỏ
+                    manual_text = manual_text[:cursor_pos] + filtered + manual_text[cursor_pos:]
+                    cursor_pos += len(filtered)
+
                     if len(manual_text) > 40:
                         manual_text = manual_text[:40]
+                        cursor_pos = min(cursor_pos, 40)
 
         pygame.display.flip()
