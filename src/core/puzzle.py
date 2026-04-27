@@ -28,7 +28,6 @@ def is_solvable(state, goal = GOAL_STATE):
     return  (start_inversions % 2) == (goal_inversions % 2)
 
 def find_blank(state):
-    """Trả về (row, col) của ô trống (giá trị 0)."""
     for r in range(3):
         for c in range(3):
             if state[r][c] == 0:

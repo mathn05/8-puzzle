@@ -3,7 +3,11 @@ import sys
 
 import pygame
 
-from src.core.benchmark import AlgorithmSpec, benchmark_algorithms, run_solver_with_metrics
+from src.core.benchmark import (
+    AlgorithmSpec,
+    benchmark_average_random_cases,
+    run_solver_with_metrics,
+)
 from src.core.puzzle import GOAL_STATE, is_solvable
 from src.core.solver_a import a_star
 from src.core.solver_mm_search import mm_search
@@ -32,6 +36,7 @@ BOARD_Y = 224
 FONT_TILE = 44
 FONT_UI = 22
 FONT_SMALL = 17
+COMPARE_CASES = 50
 
 ALGORITHMS = [
     AlgorithmSpec("A_STAR", "A*", a_star),
@@ -177,8 +182,8 @@ def draw_compare_summary(screen, font_ui, results, y_start):
     best_nodes = min(results, key=lambda item: item.get("nodes_expanded", float("inf")))
 
     lines = [
-        f"Nhanh nhất: {best_time['algorithm_name']} + {best_time['heuristic_name']} ({best_time['time_ms']} ms)",
-        f"Ít node nhất: {best_nodes['algorithm_name']} + {best_nodes['heuristic_name']} ({best_nodes['nodes_expanded']} node)",
+        f"TB nhanh nhat: {best_time['algorithm_name']} + {best_time['heuristic_name']} ({best_time['time_ms']} ms)",
+        f"TB it node nhat: {best_nodes['algorithm_name']} + {best_nodes['heuristic_name']} ({best_nodes['nodes_expanded']} node)",
     ]
 
     for index, line in enumerate(lines):
@@ -254,6 +259,7 @@ def run():
     manual_text = ""
     cursor_pos = 0
     selected_algo = "A_STAR"
+    compare_origin = "mode_select"
 
     solution_path = []
     current_step = 0
@@ -310,15 +316,14 @@ def run():
         message = ""
         return True
 
-    def run_comparison(state):
+    def run_comparison():
         nonlocal compare_results, compare_scroll, message
 
-        if not is_solvable(state):
-            compare_results = []
-            message = "Trạng thái này không giải được."
-            return False
-
-        compare_results = benchmark_algorithms(state, ALGORITHMS, HEURISTIC_SPECS)
+        compare_results = benchmark_average_random_cases(
+            ALGORITHMS,
+            HEURISTIC_SPECS,
+            num_cases=COMPARE_CASES,
+        )
         compare_results.sort(
             key=lambda item: (
                 item.get("nodes_expanded", float("inf")),
@@ -346,8 +351,9 @@ def run():
         screen.blit(title, (WINDOW_W // 2 - title.get_width() // 2, 34))
 
         prev_hover = next_hover = play_hover = reset_hover = False
-        change_heuristic_hover = menu_hover = compare_hover = False
+        change_heuristic_hover = menu_hover = False
         random_hover = manual_mode_hover = solve_manual_hover = back_hover = False
+        main_compare_hover = False
         algo_toggle_hover = compare_back_hover = compare_again_hover = False
         back_h_hover = False
 
@@ -359,10 +365,12 @@ def run():
             random_hover = draw_button(screen, font_ui, "Tạo trạng thái ngẫu nhiên", 360, 262, 360, 58, BLUE, DARK_BLUE, mouse_pos)
             manual_mode_hover = draw_button(screen, font_ui, "Nhập trạng thái thủ công", 360, 350, 360, 58, GREEN, (48, 138, 96), mouse_pos)
 
+            main_compare_hover = draw_button(screen, font_ui, "So sanh chi phi", 360, 438, 360, 58, ORANGE, (204, 130, 46), mouse_pos)
+
             if message:
                 msg_color = RED if "không" in message.lower() else BLACK
                 msg = font_ui.render(message, True, msg_color)
-                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, center_card.y + 316))
+                screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, center_card.y + 344))
 
         elif app_mode == "manual_input":
             draw_panel(screen, center_card)
@@ -418,19 +426,22 @@ def run():
                 hover = (181, 73, 73) if is_primary else (58, 142, 102) if is_secondary else DARK_BLUE
                 draw_button(screen, font_ui, spec.label, rect.x, rect.y, rect.w, rect.h, color, hover, mouse_pos)
 
-            compare_hover = draw_button(screen, font_ui, "So sánh chi phí", 340, heuristic_card.y + 468, 180, 46, BLUE, DARK_BLUE, mouse_pos)
-            back_h_hover = draw_button(screen, font_ui, "Quay lại", 560, heuristic_card.y + 468, 180, 46, ORANGE, (204, 130, 46), mouse_pos)
+            back_h_hover = draw_button(screen, font_ui, "Quay lại", 450, heuristic_card.y + 468, 180, 46, ORANGE, (204, 130, 46), mouse_pos)
 
             if message:
                 msg = font_ui.render(message, True, BLACK)
                 screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, heuristic_card.y + 528))
 
         elif app_mode == "compare_view":
-            heading = font_ui.render("Bảng so sánh chi phí trên cùng một đầu vào", True, BLACK)
+            heading = font_ui.render(f"Bang so sanh trung binh tren {COMPARE_CASES} case random", True, BLACK)
             screen.blit(heading, (WINDOW_W // 2 - heading.get_width() // 2, 118))
 
-            if pending_state is not None:
-                draw_state_banner(screen, font_small, "Trạng thái", pending_state, 68, 154, 944)
+            benchmark_note = font_small.render(
+                "Cac chi so la trung binh tren cung so luong case ngau nhien cho moi to hop.",
+                True,
+                BLACK,
+            )
+            screen.blit(benchmark_note, (68, 160))
 
             draw_compare_summary(screen, font_ui, compare_results, 214)
             draw_compare_table(screen, font_small, compare_results, compare_scroll)
@@ -462,9 +473,8 @@ def run():
             play_label = "Pause" if is_playing else "Play"
             play_hover = draw_button(screen, font_ui, play_label, 322, btn_y, 126, 44, GREEN, (58, 142, 102), mouse_pos)
             reset_hover = draw_button(screen, font_ui, "Reset", 460, btn_y, 110, 44, RED, (181, 73, 73), mouse_pos)
-            compare_hover = draw_button(screen, font_ui, "So sánh", 582, btn_y, 118, 44, BLUE, DARK_BLUE, mouse_pos)
-            change_heuristic_hover = draw_button(screen, font_ui, "Đổi heuristic", 712, btn_y, 160, 44, ORANGE, (204, 130, 46), mouse_pos)
-            menu_hover = draw_button(screen, font_ui, "Menu", 884, btn_y, 116, 44, ORANGE, (204, 130, 46), mouse_pos)
+            change_heuristic_hover = draw_button(screen, font_ui, "Đổi heuristic", 648, btn_y, 160, 44, ORANGE, (204, 130, 46), mouse_pos)
+            menu_hover = draw_button(screen, font_ui, "Menu", 820, btn_y, 116, 44, ORANGE, (204, 130, 46), mouse_pos)
 
         if app_mode == "solver_view" and is_playing and solution_path:
             play_timer += dt
@@ -496,6 +506,10 @@ def run():
                         manual_text = ""
                         cursor_pos = 0
                         message = ""
+                    elif main_compare_hover:
+                        compare_origin = "mode_select"
+                        if run_comparison():
+                            app_mode = "compare_view"
 
                 elif app_mode == "manual_input":
                     if solve_manual_hover:
@@ -530,9 +544,6 @@ def run():
                 elif app_mode == "heuristic_select":
                     if algo_toggle_hover:
                         selected_algo = "MM_SEARCH" if selected_algo == "A_STAR" else "A_STAR"
-                    elif compare_hover and pending_state is not None:
-                        if run_comparison(pending_state):
-                            app_mode = "compare_view"
                     elif back_h_hover:
                         app_mode = "mode_select" if current_mode_label == "Ngẫu nhiên" else "manual_input"
                         message = ""
@@ -543,10 +554,10 @@ def run():
                                 break
 
                 elif app_mode == "compare_view":
-                    if compare_again_hover and pending_state is not None:
-                        run_comparison(pending_state)
+                    if compare_again_hover:
+                        run_comparison()
                     elif compare_back_hover:
-                        app_mode = "heuristic_select"
+                        app_mode = compare_origin
                         message = ""
 
                 else:
@@ -562,11 +573,6 @@ def run():
                     if reset_hover:
                         current_step = 0
                         is_playing = False
-                    if compare_hover and start is not None:
-                        pending_state = start
-                        if run_comparison(start):
-                            app_mode = "compare_view"
-                            is_playing = False
                     if change_heuristic_hover:
                         pending_state = start
                         app_mode = "heuristic_select"
