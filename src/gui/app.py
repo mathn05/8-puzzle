@@ -265,7 +265,7 @@ def run():
     play_interval = 600
     text_input_enabled = False
 
-    input_rect = pygame.Rect(200, 270, 680, 56)
+    input_rect = pygame.Rect(275, 270, 530, 56)
     center_card = pygame.Rect(250, 156, 580, 396)
     heuristic_card = pygame.Rect(96, 118, 888, 560)
 
