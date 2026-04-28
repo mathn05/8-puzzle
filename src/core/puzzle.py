@@ -7,9 +7,6 @@ GOAL_STATE = (
 )
 
 def count_inversions(state):
-    """
-    Trải phẳng ma trận (bỏ qua ô trống 0) và đếm số nghịch thế.
-    """
     flat = [x for row in state for x in row if x != 0]
     inversions = 0
     for i in range(len(flat)):
@@ -19,10 +16,6 @@ def count_inversions(state):
     return inversions
 
 def is_solvable(state, goal = GOAL_STATE):
-    """
-    Kiểm tra trạng thái có giải được không.
-    Đếm số nghịch thế (inversion)
-    """
     start_inversions = count_inversions(state)
     goal_inversions = count_inversions(goal)
     return  (start_inversions % 2) == (goal_inversions % 2)
@@ -35,9 +28,6 @@ def find_blank(state):
 
 
 def get_neighbors(state):
-    """
-    Trả về danh sách các trạng thái có thể đi tiếp bằng cách di chuyển ô trống theo 4 hướng.
-    """
     neighbors = []
     r, c = find_blank(state)
 
@@ -45,7 +35,8 @@ def get_neighbors(state):
     directions = [(-1, 0, "up"), (1, 0, "down"), (0, -1, "left"), (0, 1, "right")]
 
     for dr, dc, direction in directions:
-        nr, nc = r + dr, c + dc
+        nr = r + dr
+        nc = c + dc
         if 0 <= nr < 3 and 0 <= nc < 3:
             # Tạo bản sao và hoán đổi ô trống với ô kế bên
             new_state = [list(row) for row in state]

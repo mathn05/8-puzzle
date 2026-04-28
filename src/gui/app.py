@@ -240,6 +240,143 @@ def draw_compare_table(screen, font_small, results, scroll_offset):
             screen.blit(clipped, (x, y + 8))
 
 
+def shorten_heuristic_label(label):
+    mapping = {
+        "Misplaced Tiles": "Misplaced",
+        "Gaschnig": "Gaschnig",
+        "Walking Distance": "Walking",
+        "Inversion Distance": "Inversion",
+        "Manhattan Distance": "Manhattan",
+        "Manhattan + Linear Conflict": "M + LC",
+    }
+    return mapping.get(label, label)
+
+
+def format_chart_value(value, metric_key):
+    numeric_value = float(value)
+    if metric_key == "nodes_expanded":
+        if numeric_value >= 1000:
+            return f"{numeric_value:,.0f}".replace(",", ".")
+        if numeric_value >= 100:
+            return f"{numeric_value:.1f}"
+        return f"{numeric_value:.2f}"
+
+    if numeric_value >= 10:
+        return f"{numeric_value:.1f}"
+    return f"{numeric_value:.2f}"
+
+
+def draw_statistics_chart_view(screen, font_ui, font_small, results, metric_key, metric_title, metric_suffix):
+    heading = font_ui.render(f"Thong ke trung binh tren {COMPARE_CASES} case random", True, BLACK)
+    screen.blit(heading, (WINDOW_W // 2 - heading.get_width() // 2, 104))
+
+    subheading = font_ui.render(metric_title, True, BLUE)
+    screen.blit(subheading, (WINDOW_W // 2 - subheading.get_width() // 2, 142))
+
+    note = font_small.render(
+        "Moi heuristic gom 2 cot. Gia tri duoc dat ben duoi de tranh chong len nhau.",
+        True,
+        BLACK,
+    )
+    screen.blit(note, (WINDOW_W // 2 - note.get_width() // 2, 178))
+
+    chart_rect = pygame.Rect(68, 214, 944, 430)
+    draw_panel(screen, chart_rect, radius=16)
+
+    if not results:
+        empty_surface = font_small.render("Chua co du lieu de ve bieu do.", True, RED)
+        screen.blit(empty_surface, (chart_rect.x + 24, chart_rect.y + 24))
+        return
+
+    algorithms = ALGORITHMS
+    heuristics = HEURISTIC_SPECS
+    values_by_pair = {
+        (item["algorithm_key"], item["heuristic_key"]): float(item.get(metric_key, 0.0))
+        for item in results
+    }
+
+    plot_left = chart_rect.x + 76
+    plot_right = chart_rect.x + chart_rect.w - 34
+    plot_top = chart_rect.y + 42
+    plot_bottom = chart_rect.y + chart_rect.h - 146
+    plot_width = plot_right - plot_left
+    plot_height = plot_bottom - plot_top
+
+    max_value = max(values_by_pair.values(), default=1.0)
+    if max_value <= 0:
+        max_value = 1.0
+
+    axis_color = (120, 132, 148)
+    grid_color = (225, 231, 239)
+    label_color = BLACK
+    bar_colors = [BLUE, GREEN]
+
+    pygame.draw.line(screen, axis_color, (plot_left, plot_top), (plot_left, plot_bottom), 2)
+    pygame.draw.line(screen, axis_color, (plot_left, plot_bottom), (plot_right, plot_bottom), 2)
+
+    tick_count = 5
+    for tick in range(tick_count):
+        ratio = tick / (tick_count - 1)
+        y = plot_bottom - int(plot_height * ratio)
+        pygame.draw.line(screen, grid_color, (plot_left, y), (plot_right, y), 1)
+        tick_value = round(max_value * ratio, 2)
+        tick_label = font_small.render(f"{tick_value:g}", True, label_color)
+        screen.blit(tick_label, (plot_left - tick_label.get_width() - 10, y - tick_label.get_height() // 2))
+
+    group_width = plot_width / max(1, len(heuristics))
+    bar_width = max(22, min(38, int(group_width * 0.26)))
+    gap_inside_group = 14
+
+    for index, heuristic_spec in enumerate(heuristics):
+        group_center_x = plot_left + group_width * index + group_width / 2
+        total_bars_width = bar_width * len(algorithms) + gap_inside_group * (len(algorithms) - 1)
+        start_x = int(group_center_x - total_bars_width / 2)
+        group_left = start_x - 14
+        group_box_width = total_bars_width + 28
+
+        info_box = pygame.Rect(group_left, plot_bottom + 8, group_box_width, 64)
+        pygame.draw.rect(screen, LIGHT_GRAY, info_box, border_radius=10)
+        pygame.draw.rect(screen, PANEL_BORDER, info_box, width=1, border_radius=10)
+
+        for algo_index, algorithm in enumerate(algorithms):
+            value = values_by_pair.get((algorithm.key, heuristic_spec.key), 0.0)
+            bar_height = int((value / max_value) * (plot_height - 8))
+            bar_x = start_x + algo_index * (bar_width + gap_inside_group)
+            bar_y = plot_bottom - bar_height
+
+            pygame.draw.rect(
+                screen,
+                bar_colors[algo_index % len(bar_colors)],
+                pygame.Rect(bar_x, bar_y, bar_width, bar_height),
+                border_radius=2,
+            )
+
+            short_name = "A*" if algo_index == 0 else "2 dau"
+            value_text = f"{short_name}: {format_chart_value(value, metric_key)}"
+            value_label = font_small.render(value_text, True, bar_colors[algo_index % len(bar_colors)])
+            value_x = group_left + 10
+            value_y = info_box.y + 8 + algo_index * 24
+            screen.blit(value_label, (value_x, value_y))
+
+        heuristic_label = font_small.render(shorten_heuristic_label(heuristic_spec.label), True, label_color)
+        screen.blit(
+            heuristic_label,
+            (int(group_center_x - heuristic_label.get_width() // 2), info_box.y + info_box.h + 6),
+        )
+
+    legend_y = chart_rect.y + 12
+    legend_x = chart_rect.x + 28
+    for algo_index, algorithm in enumerate(algorithms):
+        color = bar_colors[algo_index % len(bar_colors)]
+        pygame.draw.rect(screen, color, pygame.Rect(legend_x, legend_y, 18, 18), border_radius=4)
+        legend_text = font_small.render(algorithm.label, True, BLACK)
+        screen.blit(legend_text, (legend_x + 28, legend_y - 1))
+        legend_x += 180
+
+    unit_text = font_small.render(f"Don vi: {metric_suffix}", True, BLACK)
+    screen.blit(unit_text, (chart_rect.x + chart_rect.w - unit_text.get_width() - 24, chart_rect.y + 18))
+
+
 def run():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
@@ -355,6 +492,7 @@ def run():
         random_hover = manual_mode_hover = solve_manual_hover = back_hover = False
         main_compare_hover = False
         algo_toggle_hover = compare_back_hover = compare_again_hover = False
+        view_stats_hover = stats_back_hover = stats_switch_hover = False
         back_h_hover = False
 
         if app_mode == "mode_select":
@@ -445,6 +583,7 @@ def run():
 
             draw_compare_summary(screen, font_ui, compare_results, 214)
             draw_compare_table(screen, font_small, compare_results, compare_scroll)
+            view_stats_hover = draw_button(screen, font_ui, "Xem thong ke", 560, 670, 148, 42, GREEN, (58, 142, 102), mouse_pos)
 
             compare_again_hover = draw_button(screen, font_ui, "Chạy lại", 720, 670, 130, 42, BLUE, DARK_BLUE, mouse_pos)
             compare_back_hover = draw_button(screen, font_ui, "Quay lại", 872, 670, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
@@ -452,6 +591,42 @@ def run():
             if message:
                 msg = font_small.render(message, True, RED)
                 screen.blit(msg, (78, 680))
+
+        elif app_mode == "stats_nodes_view":
+            draw_statistics_chart_view(
+                screen,
+                font_ui,
+                font_small,
+                compare_results,
+                "nodes_expanded",
+                "Bieu do so sanh so node mo rong",
+                "node",
+            )
+            stats_switch_hover = draw_button(screen, font_ui, "Bang thoi gian", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
+            compare_again_hover = draw_button(screen, font_ui, "Chay lai", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
+            stats_back_hover = draw_button(screen, font_ui, "Quay lai", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
+
+            if message:
+                msg = font_small.render(message, True, RED)
+                screen.blit(msg, (70, 706))
+
+        elif app_mode == "stats_time_view":
+            draw_statistics_chart_view(
+                screen,
+                font_ui,
+                font_small,
+                compare_results,
+                "time_ms",
+                "Bieu do so sanh thoi gian chay",
+                "ms",
+            )
+            stats_switch_hover = draw_button(screen, font_ui, "Bang so node", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
+            compare_again_hover = draw_button(screen, font_ui, "Chay lai", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
+            stats_back_hover = draw_button(screen, font_ui, "Quay lai", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
+
+            if message:
+                msg = font_small.render(message, True, RED)
+                screen.blit(msg, (70, 706))
 
         else:
             current_state = solution_path[current_step] if solution_path else start
@@ -554,10 +729,33 @@ def run():
                                 break
 
                 elif app_mode == "compare_view":
-                    if compare_again_hover:
+                    if view_stats_hover:
+                        app_mode = "stats_nodes_view"
+                        message = ""
+                    elif compare_again_hover:
                         run_comparison()
                     elif compare_back_hover:
                         app_mode = compare_origin
+                        message = ""
+
+                elif app_mode == "stats_nodes_view":
+                    if stats_switch_hover:
+                        app_mode = "stats_time_view"
+                        message = ""
+                    elif compare_again_hover:
+                        run_comparison()
+                    elif stats_back_hover:
+                        app_mode = "compare_view"
+                        message = ""
+
+                elif app_mode == "stats_time_view":
+                    if stats_switch_hover:
+                        app_mode = "stats_nodes_view"
+                        message = ""
+                    elif compare_again_hover:
+                        run_comparison()
+                    elif stats_back_hover:
+                        app_mode = "compare_view"
                         message = ""
 
                 else:
