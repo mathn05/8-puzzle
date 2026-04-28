@@ -1,5 +1,7 @@
 import time
 from dataclasses import dataclass
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import os
 
 from src.core.puzzle import GOAL_STATE
 from src.heuristics.walking_distance_table import clear_wd_cache
@@ -75,49 +77,72 @@ def benchmark_algorithms(start, algorithms, heuristic_specs, goal=GOAL_STATE):
             )
     return results
 
+def run_one_benchmark_case(case_index, start, algorithms, heuristic_specs, goal):
+    case_results = benchmark_algorithms(
+        start = start, 
+        algorithms = algorithms, 
+        heuristic_specs = heuristic_specs, 
+        goal=goal)
+    return case_index, case_results
+
 
 def benchmark_average_random_cases(algorithms, heuristic_specs, goal=GOAL_STATE, num_cases=50):
+    starts = [generate_random_solvable() for _ in range(num_cases)]
     aggregated_results = {}
 
-    for _ in range(num_cases):
-        start = generate_random_solvable()
-        case_results = benchmark_algorithms(start, algorithms, heuristic_specs, goal=goal)
+    max_workers = max(1, (os.cpu_count() or 2) - 1)
 
-        for result in case_results:
-            result_key = (result["algorithm_key"], result["heuristic_key"])
-            aggregate = aggregated_results.setdefault(
-                result_key,
-                {
-                    "algorithm_key": result["algorithm_key"],
-                    "algorithm_name": result["algorithm_name"],
-                    "heuristic_key": result["heuristic_key"],
-                    "heuristic_name": result["heuristic_name"],
-                    "steps": 0.0,
-                    "nodes_expanded": 0.0,
-                    "nodes_in_open": 0.0,
-                    "time_ms": 0.0,
-                    "memory_kb": 0.0,
-                    "heuristic_calls": 0.0,
-                    "heuristic_time_ms": 0.0,
-                    "cases_run": 0,
-                    "cases_solved": 0,
-                },
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                run_one_benchmark_case,
+                case_index,
+                start,
+                algorithms,
+                heuristic_specs,
+                goal,
             )
+            for case_index, start in enumerate(starts)
+        ]
 
-            aggregate["cases_run"] += 1
-            if result.get("solved"):
-                aggregate["cases_solved"] += 1
+        for future in as_completed(futures):
+            _, case_results = future.result()
 
-            for metric_key in (
-                "steps",
-                "nodes_expanded",
-                "nodes_in_open",
-                "time_ms",
-                "memory_kb",
-                "heuristic_calls",
-                "heuristic_time_ms",
-            ):
-                aggregate[metric_key] += result.get(metric_key, 0.0)
+            for result in case_results:
+                result_key = (result["algorithm_key"], result["heuristic_key"])
+                aggregate = aggregated_results.setdefault(
+                    result_key,
+                    {
+                        "algorithm_key": result["algorithm_key"],
+                        "algorithm_name": result["algorithm_name"],
+                        "heuristic_key": result["heuristic_key"],
+                        "heuristic_name": result["heuristic_name"],
+                        "steps": 0.0,
+                        "nodes_expanded": 0.0,
+                        "nodes_in_open": 0.0,
+                        "time_ms": 0.0,
+                        "memory_kb": 0.0,
+                        "heuristic_calls": 0.0,
+                        "heuristic_time_ms": 0.0,
+                        "cases_run": 0,
+                        "cases_solved": 0,
+                    },
+                )
+
+                aggregate["cases_run"] += 1
+                if result.get("solved"):
+                    aggregate["cases_solved"] += 1
+
+                for metric_key in (
+                    "steps",
+                    "nodes_expanded",
+                    "nodes_in_open",
+                    "time_ms",
+                    "memory_kb",
+                    "heuristic_calls",
+                    "heuristic_time_ms",
+                ):
+                    aggregate[metric_key] += result.get(metric_key, 0.0)
 
     averaged_results = []
     for aggregate in aggregated_results.values():
@@ -142,3 +167,4 @@ def benchmark_average_random_cases(algorithms, heuristic_specs, goal=GOAL_STATE,
         )
 
     return averaged_results
+
