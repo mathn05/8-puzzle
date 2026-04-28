@@ -182,8 +182,8 @@ def draw_compare_summary(screen, font_ui, results, y_start):
     best_nodes = min(results, key=lambda item: item.get("nodes_expanded", float("inf")))
 
     lines = [
-        f"TB nhanh nhat: {best_time['algorithm_name']} + {best_time['heuristic_name']} ({best_time['time_ms']} ms)",
-        f"TB it node nhat: {best_nodes['algorithm_name']} + {best_nodes['heuristic_name']} ({best_nodes['nodes_expanded']} node)",
+        f"TB nhanh nhất: {best_time['algorithm_name']} + {best_time['heuristic_name']} ({best_time['time_ms']} ms)",
+        f"TB it node nhất: {best_nodes['algorithm_name']} + {best_nodes['heuristic_name']} ({best_nodes['nodes_expanded']} node)",
     ]
 
     for index, line in enumerate(lines):
@@ -267,14 +267,14 @@ def format_chart_value(value, metric_key):
 
 
 def draw_statistics_chart_view(screen, font_ui, font_small, results, metric_key, metric_title, metric_suffix):
-    heading = font_ui.render(f"Thong ke trung binh tren {COMPARE_CASES} case random", True, BLACK)
+    heading = font_ui.render(f"Thống kê trung bình trên {COMPARE_CASES} case random", True, BLACK)
     screen.blit(heading, (WINDOW_W // 2 - heading.get_width() // 2, 104))
 
     subheading = font_ui.render(metric_title, True, BLUE)
     screen.blit(subheading, (WINDOW_W // 2 - subheading.get_width() // 2, 142))
 
     note = font_small.render(
-        "Moi heuristic gom 2 cot. Gia tri duoc dat ben duoi de tranh chong len nhau.",
+        "Mỗi heuristic gồm 2 cột. Gia trị được đặt bên dưới để tránh chồng chéo.",
         True,
         BLACK,
     )
@@ -284,7 +284,7 @@ def draw_statistics_chart_view(screen, font_ui, font_small, results, metric_key,
     draw_panel(screen, chart_rect, radius=16)
 
     if not results:
-        empty_surface = font_small.render("Chua co du lieu de ve bieu do.", True, RED)
+        empty_surface = font_small.render("Chưa có dữ liệu để vẽ biểu đồ.", True, RED)
         screen.blit(empty_surface, (chart_rect.x + 24, chart_rect.y + 24))
         return
 
@@ -373,7 +373,7 @@ def draw_statistics_chart_view(screen, font_ui, font_small, results, metric_key,
         screen.blit(legend_text, (legend_x + 28, legend_y - 1))
         legend_x += 180
 
-    unit_text = font_small.render(f"Don vi: {metric_suffix}", True, BLACK)
+    unit_text = font_small.render(f"Đơn vị: {metric_suffix}", True, BLACK)
     screen.blit(unit_text, (chart_rect.x + chart_rect.w - unit_text.get_width() - 24, chart_rect.y + 18))
 
 
@@ -503,7 +503,7 @@ def run():
             random_hover = draw_button(screen, font_ui, "Tạo trạng thái ngẫu nhiên", 360, 262, 360, 58, BLUE, DARK_BLUE, mouse_pos)
             manual_mode_hover = draw_button(screen, font_ui, "Nhập trạng thái thủ công", 360, 350, 360, 58, GREEN, (48, 138, 96), mouse_pos)
 
-            main_compare_hover = draw_button(screen, font_ui, "So sanh chi phi", 360, 438, 360, 58, ORANGE, (204, 130, 46), mouse_pos)
+            main_compare_hover = draw_button(screen, font_ui, "So sánh chi phí", 360, 438, 360, 58, ORANGE, (204, 130, 46), mouse_pos)
 
             if message:
                 msg_color = RED if "không" in message.lower() else BLACK
@@ -571,11 +571,11 @@ def run():
                 screen.blit(msg, (WINDOW_W // 2 - msg.get_width() // 2, heuristic_card.y + 528))
 
         elif app_mode == "compare_view":
-            heading = font_ui.render(f"Bang so sanh trung binh tren {COMPARE_CASES} case random", True, BLACK)
+            heading = font_ui.render(f"Bảng so sánh trung bình trên {COMPARE_CASES} case random", True, BLACK)
             screen.blit(heading, (WINDOW_W // 2 - heading.get_width() // 2, 118))
 
             benchmark_note = font_small.render(
-                "Cac chi so la trung binh tren cung so luong case ngau nhien cho moi to hop.",
+                "Các chỉ số là trung bình trên cùng số lượng case ngẫu nhiên cho mỗi tổ hợp.",
                 True,
                 BLACK,
             )
@@ -583,7 +583,7 @@ def run():
 
             draw_compare_summary(screen, font_ui, compare_results, 214)
             draw_compare_table(screen, font_small, compare_results, compare_scroll)
-            view_stats_hover = draw_button(screen, font_ui, "Xem thong ke", 560, 670, 148, 42, GREEN, (58, 142, 102), mouse_pos)
+            view_stats_hover = draw_button(screen, font_ui, "Xem thống kê", 560, 670, 148, 42, GREEN, (58, 142, 102), mouse_pos)
 
             compare_again_hover = draw_button(screen, font_ui, "Chạy lại", 720, 670, 130, 42, BLUE, DARK_BLUE, mouse_pos)
             compare_back_hover = draw_button(screen, font_ui, "Quay lại", 872, 670, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
@@ -599,12 +599,12 @@ def run():
                 font_small,
                 compare_results,
                 "nodes_expanded",
-                "Bieu do so sanh so node mo rong",
+                "Biểu đồ so sánh số node mở rộng",
                 "node",
             )
-            stats_switch_hover = draw_button(screen, font_ui, "Bang thoi gian", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
-            compare_again_hover = draw_button(screen, font_ui, "Chay lai", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
-            stats_back_hover = draw_button(screen, font_ui, "Quay lai", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
+            stats_switch_hover = draw_button(screen, font_ui, "Bảng thời gian", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
+            compare_again_hover = draw_button(screen, font_ui, "Chạy lại", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
+            stats_back_hover = draw_button(screen, font_ui, "Quay lại", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
 
             if message:
                 msg = font_small.render(message, True, RED)
@@ -617,12 +617,12 @@ def run():
                 font_small,
                 compare_results,
                 "time_ms",
-                "Bieu do so sanh thoi gian chay",
+                "Biểu đồ so sánh thời gian chạy",
                 "ms",
             )
-            stats_switch_hover = draw_button(screen, font_ui, "Bang so node", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
-            compare_again_hover = draw_button(screen, font_ui, "Chay lai", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
-            stats_back_hover = draw_button(screen, font_ui, "Quay lai", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
+            stats_switch_hover = draw_button(screen, font_ui, "Bảng số node", 548, 676, 166, 42, GREEN, (58, 142, 102), mouse_pos)
+            compare_again_hover = draw_button(screen, font_ui, "Chạy lại", 726, 676, 130, 42, BLUE, DARK_BLUE, mouse_pos)
+            stats_back_hover = draw_button(screen, font_ui, "Quay lại", 868, 676, 130, 42, ORANGE, (204, 130, 46), mouse_pos)
 
             if message:
                 msg = font_small.render(message, True, RED)
