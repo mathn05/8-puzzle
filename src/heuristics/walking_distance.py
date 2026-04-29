@@ -1,17 +1,28 @@
 from src.heuristics.common import flatten_wd_state, wd_goal_pos
 from src.heuristics.walking_distance_table import get_wd_tables
+from functools import lru_cache
 
+@lru_cache(maxsize=8)
+def get_wd_goal_context(goal):
+    flat_goal = flatten_wd_state(goal)
+    goal_blank_index = flat_goal.index(0)
+    return (
+        goal_blank_index // 3,
+        goal_blank_index % 3,
+        wd_goal_pos(goal),
+    )
 
 def walking_distance(state, goal):
     wd_table, _, wd_tuple_lookup = get_wd_tables()
 
     flat_state = flatten_wd_state(state)
-    flat_goal = flatten_wd_state(goal)
-    goal_positions = wd_goal_pos(goal)
+    # flat_goal = flatten_wd_state(goal)
+    # goal_positions = wd_goal_pos(goal)
 
-    goal_blank_index = flat_goal.index(0)
-    goal_blank_row = goal_blank_index // 3
-    goal_blank_col = goal_blank_index % 3
+    # goal_blank_index = flat_goal.index(0)
+    # goal_blank_row = goal_blank_index // 3
+    # goal_blank_col = goal_blank_index % 3
+    goal_blank_row, goal_blank_col, goal_positions = get_wd_goal_context(goal)
 
     row_puzzle = [[0 for _ in range(3)] for _ in range(3)]
     col_puzzle = [[0 for _ in range(3)] for _ in range(3)]

@@ -1,18 +1,85 @@
+import random
 import time
+import os
+import pickle
+
+from typing import Callable
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import os
+from collections import defaultdict, deque
 
-from src.core.puzzle import GOAL_STATE
-from src.heuristics.walking_distance_table import clear_wd_cache
+from src.core.puzzle import GOAL_STATE, get_neighbors
 from src.utils.board import generate_random_solvable
+from src.heuristics.walking_distance_table import get_wd_tables
+
+get_wd_tables()
+
+_STATES_BY_DEPTH_CACHE = None
+STATES_BY_DEPTH_FILE = "states_by_depth_8puzzle.pkl"
+
+def get_states_by_depth(goal=GOAL_STATE):
+    global _STATES_BY_DEPTH_CACHE
+
+    if _STATES_BY_DEPTH_CACHE is not None:
+        return _STATES_BY_DEPTH_CACHE
+
+    if os.path.exists(STATES_BY_DEPTH_FILE):
+        with open(STATES_BY_DEPTH_FILE, "rb") as f:
+            _STATES_BY_DEPTH_CACHE = pickle.load(f)
+    else:
+        _STATES_BY_DEPTH_CACHE = build_states_by_depth(goal)
+        with open(STATES_BY_DEPTH_FILE, "wb") as f:
+            pickle.dump(_STATES_BY_DEPTH_CACHE, f)
+
+    return _STATES_BY_DEPTH_CACHE
+
+def build_states_by_depth(goal=GOAL_STATE):
+    states_by_dfs = defaultdict(list)
+    visited = {goal: 0}
+    queue = deque([goal])
+
+    while queue:
+        state = queue.popleft()
+        depth = visited[state]
+        states_by_dfs[depth].append(state)
+
+        for neighbor in get_neighbors(state):
+            if neighbor not in visited:
+                visited[neighbor] = depth + 1
+                queue.append(neighbor)
+    return states_by_dfs
+
+def generate_stratified_cases(goal=GOAL_STATE, seed=42):
+    rng = random.Random(seed)
+    states_by_dfs = get_states_by_depth(goal)
+
+    buckets = [
+        (5, 10, 8),
+        (11, 15, 10),
+        (16, 20, 12),
+        (21, 25, 14),
+        (26, 31, 6),
+    ]
+
+    cases = []
+
+    for min_depth, max_depth, count in buckets:
+        candidates = []
+        for depth in range(min_depth, max_depth + 1):
+            candidates.extend(states_by_dfs.get(depth, []))
+
+        selected = rng.sample(candidates, min(count, len(candidates)))
+        cases.extend(selected)
+
+    rng.shuffle(cases)
+    return cases
 
 
 @dataclass(frozen=True)
 class AlgorithmSpec:
     key: str
     label: str
-    solver: callable
+    solver: Callable
 
 
 def instrument_heuristic(heuristic_fn):
@@ -33,7 +100,6 @@ def instrument_heuristic(heuristic_fn):
 
 
 def run_solver_with_metrics(start, algorithm, heuristic_spec, goal=GOAL_STATE):
-    clear_wd_cache()
     wrapped_heuristic, heuristic_stats = instrument_heuristic(heuristic_spec.fn)
     result = algorithm.solver(start, wrapped_heuristic, goal)
 
@@ -86,13 +152,16 @@ def run_one_benchmark_case(case_index, start, algorithms, heuristic_specs, goal)
     return case_index, case_results
 
 
-def benchmark_average_random_cases(algorithms, heuristic_specs, goal=GOAL_STATE, num_cases=50):
-    starts = [generate_random_solvable() for _ in range(num_cases)]
-    aggregated_results = {}
+def benchmark_average_random_cases(algorithms, heuristic_specs, goal=GOAL_STATE, num_cases=50, use_stratified=True, seed=42):
+    if use_stratified:
+        starts = generate_stratified_cases(goal=goal, seed=seed)
+    else:
+        starts = [generate_random_solvable() for _ in range(num_cases)]
 
+    aggregated_results = {}
     max_workers = max(1, (os.cpu_count() or 2) - 1)
 
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with ProcessPoolExecutor(max_workers=max_workers, initializer=get_wd_tables) as executor:
         futures = [
             executor.submit(
                 run_one_benchmark_case,
