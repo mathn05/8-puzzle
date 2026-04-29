@@ -12,8 +12,6 @@ from src.core.puzzle import GOAL_STATE, get_neighbors
 from src.utils.board import generate_random_solvable
 from src.heuristics.walking_distance_table import get_wd_tables
 
-get_wd_tables()
-
 _STATES_BY_DEPTH_CACHE = None
 STATES_BY_DEPTH_FILE = "states_by_depth_8puzzle.pkl"
 
@@ -34,39 +32,65 @@ def get_states_by_depth(goal=GOAL_STATE):
     return _STATES_BY_DEPTH_CACHE
 
 def build_states_by_depth(goal=GOAL_STATE):
-    states_by_dfs = defaultdict(list)
+    states_by_depth = defaultdict(list)
     visited = {goal: 0}
     queue = deque([goal])
 
     while queue:
         state = queue.popleft()
         depth = visited[state]
-        states_by_dfs[depth].append(state)
+        states_by_depth[depth].append(state)
 
         for neighbor in get_neighbors(state):
             if neighbor not in visited:
                 visited[neighbor] = depth + 1
                 queue.append(neighbor)
-    return states_by_dfs
+    return states_by_depth
 
 def generate_stratified_cases(goal=GOAL_STATE, seed=42):
     rng = random.Random(seed)
-    states_by_dfs = get_states_by_depth(goal)
+    states_by_depth = get_states_by_depth(goal)
 
-    buckets = [
-        (5, 10, 8),
-        (11, 15, 10),
-        (16, 20, 12),
-        (21, 25, 14),
-        (26, 31, 6),
-    ]
+    depth_counts = {
+        5: 1,
+        6: 1,
+        7: 1,
+        8: 1,
+        9: 1,
+        10: 2,
+
+        11: 2,
+        12: 2,
+        13: 2,
+        14: 2,
+        15: 2,
+
+        16: 2,
+        17: 2,
+        18: 2,
+        19: 3,
+        20: 3,
+
+        21: 3,
+        22: 3,
+        23: 3,
+        24: 3,
+        25: 2,
+
+        26: 2,
+        27: 1,
+        28: 1,
+        29: 1,
+        30: 1,
+        31: 1,
+    }
 
     cases = []
 
-    for min_depth, max_depth, count in buckets:
-        candidates = []
-        for depth in range(min_depth, max_depth + 1):
-            candidates.extend(states_by_dfs.get(depth, []))
+    for depth, count in depth_counts.items():
+        candidates = states_by_depth.get(depth, [])
+        if not candidates:
+            raise ValueError(f"Không có state ở depth {depth}")
 
         selected = rng.sample(candidates, min(count, len(candidates)))
         cases.extend(selected)
